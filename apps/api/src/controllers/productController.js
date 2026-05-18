@@ -1,42 +1,49 @@
-const Product = require("../models/Product");
+const productService = require("../services/productService");
 
-const getProducts = async (req, res) => {
-
+exports.listProducts = async (req, res, next) => {
   try {
-
-    const products = await Product
-      .find()
-      .populate("categoria")
-      .populate("proveedor")
-      .sort({ createdAt: -1 });
-
-    res.status(200).json(products);
-
+    const result = await productService.listProducts(req.query);
+    res.json(result);
   } catch (error) {
-
-    res.status(500).json({
-      message: "Error obteniendo productos"
-    });
+    next(error);
   }
 };
 
-const createProduct = async (req, res) => {
-
+exports.getProduct = async (req, res, next) => {
   try {
+    const product = await productService.getProductById(req.params.id);
+    if (!product) {
+      return res.status(404).json({ message: "Producto no encontrado" });
+    }
+    res.json(product);
+  } catch (error) {
+    next(error);
+  }
+};
 
-    const product = await Product.create(req.body);
-
+exports.createProduct = async (req, res, next) => {
+  try {
+    const product = await productService.createProduct(req.body);
     res.status(201).json(product);
-
   } catch (error) {
-
-    res.status(500).json({
-      message: "Error creando producto"
-    });
+    next(error);
   }
 };
 
-module.exports = {
-  getProducts,
-  createProduct
+exports.updateProduct = async (req, res, next) => {
+  try {
+    const product = await productService.updateProduct(req.params.id, req.body);
+    res.json(product);
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.deleteProduct = async (req, res, next) => {
+  try {
+    await productService.deleteProduct(req.params.id);
+    res.json({ message: "Producto eliminado" });
+  } catch (error) {
+    next(error);
+  }
 };

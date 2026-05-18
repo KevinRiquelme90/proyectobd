@@ -3,10 +3,11 @@ const mongoose = require("mongoose");
 const connectDB = async () => {
   try {
 
-    const conn = await mongoose.connect(
+        const conn = await mongoose.connect(
       process.env.MONGO_URI,
       {
-        family: 4
+        family: 4,
+        dbName: process.env.MONGO_DB || "verduleria"
       }
     );
 

@@ -1,16 +1,37 @@
-const Category = require("../models/Category");
+const categoryService = require("../services/categoryService");
 
-const getCategories = async (req, res) => {
+exports.listCategories = async (req, res, next) => {
   try {
-    const categories = await Category.find().sort({ nombre: 1 });
-    res.status(200).json(categories);
+    const categories = await categoryService.listCategories();
+    res.json(categories);
   } catch (error) {
-    res.status(500).json({
-      message: "Error obteniendo categorías"
-    });
+    next(error);
   }
 };
 
-module.exports = {
-  getCategories
+exports.createCategory = async (req, res, next) => {
+  try {
+    const category = await categoryService.createCategory(req.body);
+    res.status(201).json(category);
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.updateCategory = async (req, res, next) => {
+  try {
+    const category = await categoryService.updateCategory(req.params.id, req.body);
+    res.json(category);
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.deleteCategory = async (req, res, next) => {
+  try {
+    await categoryService.deleteCategory(req.params.id);
+    res.json({ message: "Categoría eliminada" });
+  } catch (error) {
+    next(error);
+  }
 };

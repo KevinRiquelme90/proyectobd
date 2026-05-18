@@ -13,7 +13,8 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
-      lowercase: true
+      lowercase: true,
+      trim: true
     },
 
     password: {
@@ -24,36 +25,30 @@ const userSchema = new mongoose.Schema(
 
     role: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Role"
+      ref: "Role",
+      required: true
     },
 
     activo: {
       type: Boolean,
       default: true
-    }
+    },
+
+    refreshToken: String,
+    lastLogin: Date
   },
   {
     timestamps: true
   }
 );
 
-userSchema.pre("save", function(next) {
-  const user = this;
-
-  if (!user.isModified("password")) {
-    return next();
+userSchema.pre("save", async function() {
+  if (!this.isModified("password")) {
+    return;
   }
 
-  bcrypt.genSalt(10, (err, salt) => {
-    if (err) return next(err);
-
-    bcrypt.hash(user.password, salt, (err, hash) => {
-      if (err) return next(err);
-
-      user.password = hash;
-      next();
-    });
-  });
+  const hash = await bcrypt.hash(this.password, 10);
+  this.password = hash;
 });
 
 module.exports = mongoose.model("User", userSchema);
