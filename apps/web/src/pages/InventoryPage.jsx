@@ -11,15 +11,13 @@ export default function InventoryPage() {
       try {
         const response = await api.get("/inventory");
         const data = response.data;
-        const inventoryList = Array.isArray(data?.inventory)
-          ? data.inventory
-          : Array.isArray(data)
-          ? data
-          : [];
+        
+        // El servidor devuelve { inventory: [...], total, page, pages }
+        const inventoryList = data.inventory || data.products || (Array.isArray(data) ? data : []);
 
         setInventory(inventoryList);
       } catch (error) {
-        console.error(error);
+        console.error("Error cargando inventario:", error.response?.data || error.message);
         setInventory([]);
       } finally {
         setLoading(false);
@@ -30,7 +28,7 @@ export default function InventoryPage() {
 
   const safeInventory = Array.isArray(inventory) ? inventory : [];
   const totalStock = safeInventory.reduce((sum, item) => sum + (item.stock || 0), 0);
-  const productsLowStock = safeInventory.filter((item) => item.stock <= 5).length;
+  const productsLowStock = safeInventory.filter((item) => item.stock <= (item.stock_minimo || 5)).length;
 
   return (
     <section className="space-y-8">
@@ -75,10 +73,10 @@ export default function InventoryPage() {
               <tbody>
                 {inventory.map((item) => (
                   <tr key={item._id} className="border-t border-slate-800 hover:bg-slate-900/80">
-                    <td className="px-5 py-4 text-slate-200">{item.producto?.nombre || item.nombre || "—"}</td>
-                    <td className="px-5 py-4 text-slate-400">{item.producto?.categoria?.nombre || item.categoria || "—"}</td>
-                    <td className={`px-5 py-4 font-semibold ${item.stock <= 5 ? "text-rose-400" : "text-emerald-300"}`}>{item.stock}</td>
-                    <td className="px-5 py-4 text-slate-400">{formatCurrency(item.producto?.precio_compra || item.valor_promedio || 0)}</td>
+                    <td className="px-5 py-4 text-slate-200">{item.nombre || "—"}</td>
+                    <td className="px-5 py-4 text-slate-400">{item.categoria?.nombre || "—"}</td>
+                    <td className={`px-5 py-4 font-semibold ${item.stock <= (item.stock_minimo || 5) ? "text-rose-400" : "text-emerald-300"}`}>{item.stock}</td>
+                    <td className="px-5 py-4 text-slate-400">{formatCurrency(item.precio_compra || item.valor_promedio || 0)}</td>
                   </tr>
                 ))}
               </tbody>
