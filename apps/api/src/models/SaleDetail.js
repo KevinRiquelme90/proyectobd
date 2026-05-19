@@ -4,19 +4,33 @@ const saleDetailSchema = new mongoose.Schema(
   {
     venta: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Sale"
+      ref: "Sale",
+      required: true
     },
 
     producto: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Product"
+      ref: "Product",
+      required: true
     },
 
-    cantidad: Number,
+    cantidad: {
+      type: Number,
+      required: true,
+      min: 1
+    },
 
-    precio: Number,
+    precio: {
+      type: Number,
+      required: true,
+      min: 0
+    },
 
-    subtotal: Number
+    subtotal: {
+      type: Number,
+      required: true,
+      min: 0
+    }
   },
   {
     timestamps: true
