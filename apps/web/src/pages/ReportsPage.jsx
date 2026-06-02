@@ -26,12 +26,21 @@ export default function ReportsPage() {
         setLoading(false);
       }
     };
+    const handleRefresh = () => {
+      setLoading(true);
+      load();
+    };
     load();
+    window.addEventListener("dataUpdated", handleRefresh);
+    return () => window.removeEventListener("dataUpdated", handleRefresh);
   }, []);
 
   const totalSales = useMemo(() => sales.reduce((sum, item) => sum + (item.total || 0), 0), [sales]);
   const totalPurchases = useMemo(() => purchases.reduce((sum, item) => sum + (item.total || 0), 0), [purchases]);
-  const gananciaNeta = totalSales - totalPurchases;
+  const totalMermas = dashboard?.totalMermas || 0;
+  const totalVentasValue = dashboard?.totalVentas ?? totalSales;
+  const totalComprasValue = dashboard?.totalCompras ?? totalPurchases;
+  const gananciaNeta = totalVentasValue - totalComprasValue - totalMermas;
 
   return (
     <section className="space-y-8">
@@ -41,7 +50,7 @@ export default function ReportsPage() {
         <p className="mt-2 text-slate-400">Toma decisiones rápidas con las métricas clave de tu negocio.</p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-4">
         <div className="rounded-4xl border border-slate-800 bg-slate-950/95 p-6">
           <p className="text-sm uppercase tracking-[0.24em] text-slate-400">Ingresos</p>
           <p className="mt-4 text-4xl font-semibold text-white">{dashboard ? formatCurrency(dashboard.totalVentas || 0) : "..."}</p>
@@ -49,6 +58,10 @@ export default function ReportsPage() {
         <div className="rounded-4xl border border-slate-800 bg-slate-950/95 p-6">
           <p className="text-sm uppercase tracking-[0.24em] text-slate-400">Compras</p>
           <p className="mt-4 text-4xl font-semibold text-white">{dashboard ? formatCurrency(dashboard.totalCompras || 0) : "..."}</p>
+        </div>
+        <div className="rounded-4xl border border-slate-800 bg-slate-950/95 p-6">
+          <p className="text-sm uppercase tracking-[0.24em] text-slate-400">Total de mermas</p>
+          <p className="mt-4 text-4xl font-semibold text-white">{formatCurrency(dashboard ? dashboard.totalMermas || 0 : 0)}</p>
         </div>
         <div className="rounded-4xl border border-slate-800 bg-slate-950/95 p-6">
           <p className="text-sm uppercase tracking-[0.24em] text-emerald-400">Clientes</p>
@@ -70,7 +83,7 @@ export default function ReportsPage() {
         <div className="rounded-4xl border border-slate-800 bg-slate-950/95 p-6">
           <p className="text-sm uppercase tracking-[0.24em] text-emerald-400">Ganancia neta</p>
           <p className="mt-4 text-4xl font-semibold text-white">{formatCurrency(gananciaNeta)}</p>
-          <p className="mt-2 text-sm text-slate-400">Diferencia entre ventas y compras</p>
+          <p className="mt-2 text-sm text-slate-400">Ventas - Compras - Mermas</p>
         </div>
       </div>
 

@@ -54,8 +54,8 @@ export default function PurchasesPage() {
     try {
       await api.post("/purchases", {
         proveedor: values.proveedor,
-        fecha: new Date().toISOString(),
-        detalle: values.items.map((item) => ({
+        total: subtotal,
+        items: values.items.map((item) => ({
           producto: item.producto,
           cantidad: item.cantidad,
           precio_compra: item.precio_compra
@@ -63,8 +63,10 @@ export default function PurchasesPage() {
       });
 
       setMessage("Compra registrada con éxito.");
+      window.dispatchEvent(new Event("dataUpdated"));
       reset({ proveedor: "", items: [{ producto: "", cantidad: 1, precio_compra: 0 }] });
     } catch (error) {
+      console.error("Error registrando compra:", error.response?.data || error.message);
       setMessage(error.response?.data?.message || "No se pudo registrar la compra.");
     } finally {
       setSaving(false);

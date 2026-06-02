@@ -26,7 +26,16 @@ exports.listInventory = async (options = {}) => {
 
   const total = await Product.countDocuments(query);
 
-  // Enriquecer con información de movimientos si es necesario
+  const mermaCounts = await InventoryMovement.aggregate([
+    { $match: { tipo: "MERMA" } },
+    { $group: { _id: "$producto", totalMermas: { $sum: "$cantidad" } } }
+  ]);
+
+  const mermaMap = mermaCounts.reduce((acc, current) => {
+    acc[current._id.toString()] = current.totalMermas;
+    return acc;
+  }, {});
+
   const inventory = products.map((product) => ({
     _id: product._id,
     nombre: product.nombre,
@@ -37,6 +46,7 @@ exports.listInventory = async (options = {}) => {
     precio_compra: product.precio_compra,
     precio_venta: product.precio_venta,
     valor_promedio: product.precio_compra,
+    mermas: mermaMap[product._id.toString()] || 0,
     categoria: product.categoria,
     proveedor: product.proveedor,
     producto: product // Para compatibilidad con frontend
@@ -49,6 +59,47 @@ exports.listInventory = async (options = {}) => {
     page, 
     pages: Math.ceil(total / limit) 
   };
+};
+
+exports.createMerma = async ({ usuario, producto, cantidad, motivo, fecha }) => {
+  if (!producto) {
+    throw new Error("Producto inválido");
+  }
+
+  const product = await Product.findById(producto);
+  if (!product) {
+    throw new Error("Producto no encontrado");
+  }
+
+  const quantity = Number(cantidad);
+  if (Number.isNaN(quantity) || quantity <= 0) {
+    throw new Error("Cantidad de merma inválida");
+  }
+
+  if (product.stock - quantity < 0) {
+    throw new Error("No hay stock suficiente para registrar la merma");
+  }
+
+  product.stock -= quantity;
+  await product.save();
+
+  const movementData = {
+    producto,
+    tipo: "MERMA",
+    cantidad: quantity,
+    motivo: motivo || "Mermas de inventario",
+    usuario
+  };
+
+  if (fecha) {
+    const parsedDate = new Date(fecha);
+    if (!Number.isNaN(parsedDate.getTime())) {
+      movementData.createdAt = parsedDate;
+    }
+  }
+
+  const movement = await InventoryMovement.create(movementData);
+  return movement;
 };
 
 exports.listMovements = async (options = {}) => {

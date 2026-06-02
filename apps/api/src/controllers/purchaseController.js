@@ -11,6 +11,7 @@ exports.createPurchase = async (req, res, next) => {
     });
     res.status(201).json(purchase);
   } catch (error) {
+    console.error("Error creating purchase:", error.message || error);
     next(error);
   }
 };

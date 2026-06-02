@@ -1,18 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
+import { useLocation } from "react-router-dom";
 import api from "../api/axios";
 import { formatCurrency } from "../utils/formatCurrency";
 import { useAuth } from "../context/AuthContext";
 import EditProductModal from "../components/EditProductModal";
 
 export default function ProductsPage() {
+  const location = useLocation();
+  const initialSearch = new URLSearchParams(location.search).get("search") || "";
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [providers, setProviders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialSearch);
   const [editingProduct, setEditingProduct] = useState(null);
   const { user } = useAuth();
   const isAdmin = user?.role?.nombre === "ADMIN" || user?.role === "ADMIN";
@@ -58,8 +61,8 @@ export default function ProductsPage() {
   }, [query]);
 
   useEffect(() => {
-    loadProducts();
-  }, []);
+    loadProducts(initialSearch);
+  }, [initialSearch]);
 
   const onSubmit = async (values) => {
     setSaving(true);

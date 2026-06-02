@@ -1,6 +1,8 @@
 const Sale = require("../models/Sale");
 const Product = require("../models/Product");
 const SaleDetail = require("../models/SaleDetail");
+const Purchase = require("../models/Purchase");
+const InventoryMovement = require("../models/InventoryMovements");
 
 exports.getDashboardStats = async () => {
   const today = new Date();
@@ -17,7 +19,45 @@ exports.getDashboardStats = async () => {
     { $group: { _id: null, total: { $sum: "$total" } } }
   ]);
 
-  const productosBajos = await Product.countDocuments({ activo: true, $expr: { $lte: ["$stock", "$stock_minimo"] } });
+  const totalVentasAgg = await Sale.aggregate([
+    { $group: { _id: null, total: { $sum: "$total" } } }
+  ]);
+
+  const totalComprasAgg = await Purchase.aggregate([
+    { $group: { _id: null, total: { $sum: "$total" } } }
+  ]);
+
+  const mermasAgg = await InventoryMovement.aggregate([
+    { $match: { tipo: "MERMA" } },
+    {
+      $lookup: {
+        from: "products",
+        localField: "producto",
+        foreignField: "_id",
+        as: "producto"
+      }
+    },
+    { $unwind: "$producto" },
+    {
+      $group: {
+        _id: null,
+        total: { $sum: { $multiply: ["$cantidad", "$producto.precio_compra"] } },
+        units: { $sum: "$cantidad" }
+      }
+    }
+  ]);
+
+  const totalVentas = totalVentasAgg[0]?.total || 0;
+  const totalCompras = totalComprasAgg[0]?.total || 0;
+  const totalMermas = mermasAgg[0]?.total || 0;
+  const totalMermasUnits = mermasAgg[0]?.units || 0;
+
+  const productosBajos = await Product.find({ activo: true, $expr: { $lte: ["$stock", "$stock_minimo"] } })
+    .populate("categoria")
+    .select("nombre stock stock_minimo categoria")
+    .lean();
+
+  const gananciaNeta = totalVentas - totalCompras - totalMermas;
 
   const ganancias = await SaleDetail.aggregate([
     {
@@ -74,8 +114,20 @@ exports.getDashboardStats = async () => {
   return {
     ventasDia: ventasDia[0]?.total || 0,
     ventasMes: ventasMes[0]?.total || 0,
-    productosBajos,
-    ganancias: ganancias[0]?.totalGanancia || 0,
+    totalVentas,
+    totalCompras,
+    totalMermas,
+    totalMermasUnits,
+    productosBajos: productosBajos.length,
+    lowStockProducts: productosBajos.map((product) => ({
+      _id: product._id,
+      nombre: product.nombre,
+      stock: product.stock,
+      stock_minimo: product.stock_minimo,
+      categoria: product.categoria?.nombre || "Sin categoría"
+    })),
+    ganancias: gananciaNeta,
+    rawGanancia: ganancias[0]?.totalGanancia || 0,
     topProducts
   };
 };

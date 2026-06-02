@@ -3,10 +3,40 @@ const Product = require("../models/Product");
 const InventoryMovement = require("../models/InventoryMovements");
 
 exports.createPurchase = async ({ usuario, proveedor, items, total, nota }) => {
-  const purchase = await Purchase.create({ usuario, proveedor, items, total, nota });
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new Error("La compra debe incluir al menos un producto");
+  }
+
+  const purchaseItems = items.map((item) => {
+    const cantidad = Number(item.cantidad);
+    const precioCompra = Number(item.precio_compra ?? item.precio_unitario ?? 0);
+
+    if (!item.producto || cantidad <= 0 || precioCompra < 0) {
+      throw new Error("Item de compra inválido");
+    }
+
+    return {
+      producto: item.producto,
+      cantidad,
+      precio_unitario: precioCompra,
+      subtotal: Number((cantidad * precioCompra).toFixed(2))
+    };
+  });
+
+  const purchaseTotal = Number(
+    (total ?? purchaseItems.reduce((sum, item) => sum + item.subtotal, 0)).toFixed(2)
+  );
+
+  const purchase = await Purchase.create({
+    usuario,
+    proveedor,
+    items: purchaseItems,
+    total: purchaseTotal,
+    nota
+  });
 
   await Promise.all(
-    items.map(async (item) => {
+    purchaseItems.map(async (item) => {
       await Product.findByIdAndUpdate(item.producto, {
         $inc: { stock: item.cantidad }
       });

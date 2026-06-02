@@ -1,7 +1,8 @@
 const express = require("express");
-const { query } = require("express-validator");
-const { listInventory, listMovements } = require("../controllers/inventoryController");
+const { body, query } = require("express-validator");
+const { listInventory, listMovements, createMerma } = require("../controllers/inventoryController");
 const protect = require("../middlewares/authMiddleware");
+const ensureRole = require("../middlewares/roleMiddleware");
 const validateRequest = require("../middlewares/validateRequest");
 
 const router = express.Router();
@@ -17,6 +18,20 @@ router.get(
   validateRequest,
   protect,
   listInventory
+);
+
+router.post(
+  "/mermas",
+  protect,
+  ensureRole(["ADMIN"]),
+  [
+    body("producto").isMongoId().withMessage("Producto inválido"),
+    body("cantidad").isFloat({ gt: 0 }).withMessage("Cantidad de merma inválida"),
+    body("motivo").optional().isString(),
+    body("fecha").optional().isISO8601().withMessage("Fecha inválida"),
+    validateRequest
+  ],
+  createMerma
 );
 
 // Movimientos históricos de inventario

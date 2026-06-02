@@ -14,6 +14,7 @@ const movementSchema = new mongoose.Schema(
         "SALIDA",
         "VENTA",
         "COMPRA",
+        "MERMA",
         "AJUSTE"
       ]
     },
