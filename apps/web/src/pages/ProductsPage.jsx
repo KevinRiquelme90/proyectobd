@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import api from "../api/axios";
 import { formatCurrency } from "../utils/formatCurrency";
+import { useAuth } from "../context/AuthContext";
+import EditProductModal from "../components/EditProductModal";
 
 export default function ProductsPage() {
   const [products, setProducts] = useState([]);
@@ -10,6 +12,10 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [query, setQuery] = useState("");
+  const [editingProduct, setEditingProduct] = useState(null);
+  const { user } = useAuth();
+  const isAdmin = user?.role?.nombre === "ADMIN" || user?.role === "ADMIN";
   const { register, handleSubmit, reset, watch } = useForm({
     defaultValues: {
       nombre: "",
@@ -26,25 +32,33 @@ export default function ProductsPage() {
   const watchPrice = watch("precio_venta", 0);
   const watchCost = watch("precio_compra", 0);
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const [productRes, categoryRes, providerRes] = await Promise.all([
-          api.get("/products"),
-          api.get("/categories"),
-          api.get("/providers")
-        ]);
+  const loadProducts = async (search = "") => {
+    try {
+      setLoading(true);
+      const [productRes, categoryRes, providerRes] = await Promise.all([
+        api.get("/products", { params: { search } }),
+        api.get("/categories"),
+        api.get("/providers")
+      ]);
 
-        setProducts(productRes.data.products || productRes.data);
-        setCategories(categoryRes.data);
-        setProviders(providerRes.data.providers || providerRes.data);
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
+      setProducts(productRes.data.products || productRes.data);
+      setCategories(categoryRes.data);
+      setProviders(providerRes.data.providers || providerRes.data);
+    } catch (error) {
+      console.error(error);
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const timeout = setTimeout(() => loadProducts(query), 250);
+    return () => clearTimeout(timeout);
+  }, [query]);
+
+  useEffect(() => {
+    loadProducts();
   }, []);
 
   const onSubmit = async (values) => {
@@ -72,9 +86,33 @@ export default function ProductsPage() {
     }
   };
 
+  const handleEdit = (product) => setEditingProduct(product);
+
+  const handleSave = async (updated) => {
+    try {
+      await api.put(`/products/${updated._id}`, updated);
+      setEditingProduct(null);
+      await loadProducts(query);
+    } catch (error) {
+      console.error(error);
+      alert(error.response?.data?.message || "No se pudo actualizar el producto.");
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm("¿Eliminar este producto?")) return;
+    try {
+      await api.delete(`/products/${id}`);
+      await loadProducts(query);
+    } catch (error) {
+      console.error(error);
+      alert(error.response?.data?.message || "No se pudo eliminar el producto.");
+    }
+  };
+
   return (
     <section className="space-y-8">
-      <div className="rounded-[32px] border border-slate-800 bg-slate-950/95 p-6">
+      <div className="rounded-4xl border border-slate-800 bg-slate-950/95 p-6">
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-sm uppercase tracking-[0.24em] text-emerald-400">Productos</p>
@@ -88,7 +126,7 @@ export default function ProductsPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="rounded-[32px] border border-slate-800 bg-slate-950/95 p-6">
+        <div className="rounded-4xl border border-slate-800 bg-slate-950/95 p-6">
           <h2 className="text-xl font-semibold text-white">Nuevo producto</h2>
           <form className="mt-6 grid gap-4" onSubmit={handleSubmit(onSubmit)}>
             <div className="grid gap-4 md:grid-cols-2">
@@ -159,13 +197,21 @@ export default function ProductsPage() {
           </form>
         </div>
 
-        <div className="rounded-[32px] border border-slate-800 bg-slate-950/95 p-6">
-          <div className="mb-6 flex items-center justify-between gap-4">
+        <div className="rounded-4xl border border-slate-800 bg-slate-950/95 p-6">
+          <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <h2 className="text-xl font-semibold text-white">Inventario actual</h2>
               <p className="mt-2 text-sm text-slate-400">Revisa los productos disponibles y su nivel de stock.</p>
             </div>
-            <span className="rounded-full bg-slate-800 px-4 py-2 text-sm uppercase tracking-[0.24em] text-slate-300">{products.length} artículos</span>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Buscar producto..."
+                className="w-full max-w-sm rounded-3xl border border-slate-800 bg-slate-900 px-4 py-3 text-white outline-none focus:border-emerald-400"
+              />
+              <span className="rounded-full bg-slate-800 px-4 py-2 text-sm uppercase tracking-[0.24em] text-slate-300">{products.length} artículos</span>
+            </div>
           </div>
           {loading ? (
             <p className="text-slate-400">Cargando productos...</p>
@@ -181,10 +227,18 @@ export default function ProductsPage() {
                         <p className="text-lg font-semibold text-white">{product.nombre}</p>
                         <p className="mt-1 text-sm text-slate-400">{product.categoria?.nombre || "Sin categoría"}</p>
                       </div>
-                      <div className="flex flex-wrap gap-3 text-sm text-slate-300">
-                        <span className="rounded-2xl bg-slate-800 px-3 py-2">Venta {formatCurrency(product.precio_venta)}</span>
-                        <span className="rounded-2xl bg-slate-800 px-3 py-2">Compra {formatCurrency(product.precio_compra)}</span>
-                        <span className="rounded-2xl bg-slate-800 px-3 py-2">Stock {product.stock}</span>
+                      <div className="flex flex-col gap-3 md:items-end">
+                        <div className="flex flex-wrap gap-3 text-sm text-slate-300">
+                          <span className="rounded-2xl bg-slate-800 px-3 py-2">Venta {formatCurrency(product.precio_venta)}</span>
+                          <span className="rounded-2xl bg-slate-800 px-3 py-2">Compra {formatCurrency(product.precio_compra)}</span>
+                          <span className="rounded-2xl bg-slate-800 px-3 py-2">Stock {product.stock}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button onClick={() => handleEdit(product)} className="rounded-full bg-emerald-400 px-3 py-1 text-xs font-semibold text-slate-950 hover:bg-emerald-300">Editar</button>
+                          {isAdmin && (
+                            <button onClick={() => handleDelete(product._id)} className="rounded-full bg-rose-500 px-3 py-1 text-xs font-semibold text-white hover:bg-rose-400">Eliminar</button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </article>
@@ -193,6 +247,7 @@ export default function ProductsPage() {
             </div>
           )}
         </div>
+        {editingProduct && <EditProductModal product={editingProduct} onClose={() => setEditingProduct(null)} onSave={handleSave} />}
       </div>
     </section>
   );
