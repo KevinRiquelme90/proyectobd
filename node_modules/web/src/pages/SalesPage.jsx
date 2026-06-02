@@ -5,7 +5,8 @@ import { formatCurrency } from "../utils/formatCurrency";
 
 const paymentMethods = [
   { value: "efectivo", label: "Efectivo" },
-  { value: "tarjeta", label: "Tarjeta" },
+  { value: "debito", label: "Débito" },
+  { value: "credito", label: "Crédito" },
   { value: "transferencia", label: "Transferencia" }
 ];
 
@@ -86,21 +87,24 @@ export default function SalesPage() {
     setMessage("");
 
     try {
-      await api.post("/sales", {
-        cliente: values.cliente,
+      const response = await api.post("/sales", {
+        cliente: values.cliente || null,
         metodo_pago: values.metodo_pago,
         total: subtotal,
-        detalle: cartItems.map((item) => ({
+        items: cartItems.map((item) => ({
           producto: item._id,
           cantidad: item.cantidad,
-          precio_venta: item.precio_venta
+          precio: item.precio_venta,
+          subtotal: item.cantidad * item.precio_venta
         }))
       });
 
       setMessage("Venta registrada con éxito.");
       setCartItems([]);
       reset({ cliente: "", producto: "", cantidad: 1, metodo_pago: "efectivo" });
+      console.log("Venta creada:", response.data);
     } catch (error) {
+      console.error("Error al registrar venta:", error.response?.data);
       setMessage(error.response?.data?.message || "No se pudo registrar la venta.");
     } finally {
       setSaving(false);
