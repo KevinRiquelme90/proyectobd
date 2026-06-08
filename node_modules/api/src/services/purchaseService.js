@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Purchase = require("../models/Purchase");
 const Product = require("../models/Product");
 const InventoryMovement = require("../models/InventoryMovements");
@@ -27,31 +28,59 @@ exports.createPurchase = async ({ usuario, proveedor, items, total, nota }) => {
     (total ?? purchaseItems.reduce((sum, item) => sum + item.subtotal, 0)).toFixed(2)
   );
 
-  const purchase = await Purchase.create({
-    usuario,
-    proveedor,
-    items: purchaseItems,
-    total: purchaseTotal,
-    nota
-  });
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-  await Promise.all(
-    purchaseItems.map(async (item) => {
-      await Product.findByIdAndUpdate(item.producto, {
-        $inc: { stock: item.cantidad }
-      });
+  try {
+    const purchase = await Purchase.create(
+      [
+        {
+          usuario,
+          proveedor,
+          items: purchaseItems,
+          total: purchaseTotal,
+          nota
+        }
+      ],
+      { session }
+    );
 
-      await InventoryMovement.create({
-        producto: item.producto,
-        tipo: "COMPRA",
-        cantidad: item.cantidad,
-        motivo: nota || "Compra de inventario",
-        usuario
-      });
-    })
-  );
+    const savedPurchase = purchase[0];
 
-  return purchase;
+    for (const item of purchaseItems) {
+      const updatedProduct = await Product.findByIdAndUpdate(
+        item.producto,
+        { $inc: { stock: item.cantidad } },
+        { session, new: true }
+      );
+
+      if (!updatedProduct) {
+        throw new Error(`No se encontró el producto ${item.producto} para actualizar stock`);
+      }
+
+      await InventoryMovement.create(
+        [
+          {
+            producto: item.producto,
+            tipo: "COMPRA",
+            cantidad: item.cantidad,
+            motivo: nota || "Compra de inventario",
+            usuario
+          }
+        ],
+        { session }
+      );
+    }
+
+    await session.commitTransaction();
+    return savedPurchase;
+  } catch (error) {
+    await session.abortTransaction();
+    console.error("Error en createPurchase:", error.message || error);
+    throw new Error(`Error al crear compra: ${error.message}`);
+  } finally {
+    session.endSession();
+  }
 };
 
 exports.listPurchases = async (options = {}) => {

@@ -3,6 +3,7 @@ const Product = require("../models/Product");
 const SaleDetail = require("../models/SaleDetail");
 const Purchase = require("../models/Purchase");
 const InventoryMovement = require("../models/InventoryMovements");
+const Client = require("../models/Client");
 
 exports.getDashboardStats = async () => {
   const today = new Date();
@@ -111,6 +112,8 @@ exports.getDashboardStats = async () => {
     }
   ]);
 
+  const totalClientes = await Client.countDocuments();
+
   return {
     ventasDia: ventasDia[0]?.total || 0,
     ventasMes: ventasMes[0]?.total || 0,
@@ -128,6 +131,7 @@ exports.getDashboardStats = async () => {
     })),
     ganancias: gananciaNeta,
     rawGanancia: ganancias[0]?.totalGanancia || 0,
-    topProducts
+    topProducts,
+    totalClientes
   };
 };
