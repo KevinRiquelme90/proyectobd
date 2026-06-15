@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import api from "../api/axios";
 import { formatCurrency } from "../utils/formatCurrency";
@@ -29,30 +29,40 @@ export default function SalesPage() {
   const selectedProduct = watch("producto");
   const selectedQuantity = watch("cantidad", 1);
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const [productsRes, clientsRes] = await Promise.all([
-          api.get("/products"),
-          api.get("/clients")
-        ]);
+  const loadData = useCallback(async () => {
+    try {
+      const [productsRes, clientsRes] = await Promise.all([
+        api.get("/products"),
+        api.get("/clients")
+      ]);
 
-        setProducts(productsRes.data.products || productsRes.data);
-        setClients(clientsRes.data.clients || clientsRes.data);
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    load();
+      setProducts(productsRes.data.products || productsRes.data);
+      setClients(clientsRes.data.clients || clientsRes.data);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadData();
+    window.addEventListener("dataUpdated", loadData);
+    return () => window.removeEventListener("dataUpdated", loadData);
+  }, [loadData]);
 
   const item = useMemo(
     () => products.find((product) => product._id === selectedProduct),
     [products, selectedProduct]
   );
+  const selectedCartEntry = useMemo(
+    () => cartItems.find((entry) => entry._id === item?._id),
+    [cartItems, item]
+  );
+  const remainingStock = useMemo(() => {
+    if (!item) return 0;
+    return Math.max(item.stock - (selectedCartEntry?.cantidad || 0), 0);
+  }, [item, selectedCartEntry]);
 
   const subtotal = useMemo(
     () => cartItems.reduce((total, product) => total + product.precio_venta * product.cantidad, 0),
@@ -60,8 +70,22 @@ export default function SalesPage() {
   );
 
   const onAddItem = () => {
-    if (!item || selectedQuantity <= 0) return;
+    if (!item || selectedQuantity <= 0) {
+      setMessage("Selecciona un producto y una cantidad válida.");
+      return;
+    }
 
+    if (item.stock <= 0 || remainingStock <= 0) {
+      setMessage("El producto no tiene stock disponible.");
+      return;
+    }
+
+    if (selectedQuantity > remainingStock) {
+      setMessage(`Solo quedan ${remainingStock} unidades disponibles.`);
+      return;
+    }
+
+    setMessage("");
     setCartItems((prev) => {
       const existing = prev.find((entry) => entry._id === item._id);
       if (existing) {
@@ -102,6 +126,8 @@ export default function SalesPage() {
       setMessage("Venta registrada con éxito.");
       setCartItems([]);
       reset({ cliente: "", producto: "", cantidad: 1, metodo_pago: "efectivo" });
+      window.dispatchEvent(new Event("dataUpdated"));
+      await loadData();
       console.log("Venta creada:", response.data);
     } catch (error) {
       console.error("Error al registrar venta:", error.response?.data);
@@ -113,7 +139,7 @@ export default function SalesPage() {
 
   return (
     <section className="space-y-8">
-      <div className="rounded-[32px] border border-slate-800 bg-slate-950/95 p-6">
+      <div className="rounded-4xl border border-slate-800 bg-slate-950/95 p-6">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-sm uppercase tracking-[0.24em] text-emerald-400">Ventas</p>
@@ -127,7 +153,7 @@ export default function SalesPage() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <div className="rounded-[32px] border border-slate-800 bg-slate-950/95 p-6">
+        <div className="rounded-4xl border border-slate-800 bg-slate-950/95 p-6">
           <h2 className="text-xl font-semibold text-white">Agregar producto</h2>
           <div className="mt-6 grid gap-4">
             <label className="block text-sm font-medium text-slate-300">
@@ -144,9 +170,18 @@ export default function SalesPage() {
               <select {...register("producto")} className="mt-2 w-full rounded-3xl border border-slate-800 bg-slate-900 px-4 py-3 text-white outline-none focus:border-emerald-400">
                 <option value="">Selecciona un producto</option>
                 {products.map((product) => (
-                  <option key={product._id} value={product._id}>{product.nombre} - {formatCurrency(product.precio_venta)}</option>
+                  <option key={product._id} value={product._id}>
+                    {product.nombre} (Stock: {product.stock ?? 0}) - {formatCurrency(product.precio_venta)}
+                  </option>
                 ))}
               </select>
+              {item && (
+                <p className="mt-2 text-sm text-slate-400">
+                  Stock actual: <span className="font-semibold text-white">{item.stock}</span>
+                  {selectedCartEntry ? ` | Ya agregado: ${selectedCartEntry.cantidad}.` : ""}
+                  {selectedCartEntry ? ` Disponible: ${remainingStock}` : ` Disponible: ${remainingStock}`}
+                </p>
+              )}
             </label>
             <div className="grid gap-4 md:grid-cols-2">
               <label className="block text-sm font-medium text-slate-300">
@@ -162,7 +197,7 @@ export default function SalesPage() {
                 </select>
               </label>
             </div>
-            <button onClick={onAddItem} className="w-full rounded-3xl bg-emerald-400 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300">
+            <button onClick={onAddItem} disabled={!item || remainingStock <= 0 || selectedQuantity <= 0} className="w-full rounded-3xl bg-emerald-400 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-700">
               Añadir al carrito
             </button>
             {message && <p className="text-sm text-emerald-300">{message}</p>}
@@ -178,7 +213,7 @@ export default function SalesPage() {
           </div>
         </div>
 
-        <div className="rounded-[32px] border border-slate-800 bg-slate-950/95 p-6">
+        <div className="rounded-4xl border border-slate-800 bg-slate-950/95 p-6">
           <h2 className="text-xl font-semibold text-white">Carrito de venta</h2>
           {cartItems.length === 0 ? (
             <p className="mt-6 text-slate-400">Añade productos para comenzar la venta.</p>

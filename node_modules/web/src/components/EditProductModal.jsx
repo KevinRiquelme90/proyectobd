@@ -40,8 +40,8 @@ export default function EditProductModal({ product, onClose, onSave }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div onClick={onClose} className="absolute inset-0 bg-black/60" />
+    <div className="fixed inset-0 z-50 flex min-h-screen items-center justify-center overflow-y-auto bg-black/60 p-4">
+      <div onClick={onClose} className="absolute inset-0" />
       <div className="relative w-full max-w-2xl rounded-2xl bg-slate-950 p-6 shadow-lg">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-white">Editar producto</h3>
