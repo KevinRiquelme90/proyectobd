@@ -61,7 +61,7 @@ exports.createPurchase = async ({ usuario, proveedor, items, total, nota }) => {
       const updatedProduct = await Product.findByIdAndUpdate(
         item.producto,
         { $inc: { stock: item.cantidad } },
-        { session, new: true }
+        { session, returnDocument: 'after' }
       );
 
       if (!updatedProduct) {

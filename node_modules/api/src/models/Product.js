@@ -72,6 +72,10 @@ const productSchema = new mongoose.Schema(
   }
 );
 
+productSchema.index({ stock: 1 });
+productSchema.index({ categoria: 1 });
+productSchema.index({ proveedor: 1 });
+
 module.exports = mongoose.model(
   "Product",
   productSchema

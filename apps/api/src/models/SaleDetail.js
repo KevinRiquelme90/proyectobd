@@ -37,6 +37,8 @@ const saleDetailSchema = new mongoose.Schema(
   }
 );
 
+saleDetailSchema.index({ producto: 1 });
+
 module.exports = mongoose.model(
   "SaleDetail",
   saleDetailSchema
