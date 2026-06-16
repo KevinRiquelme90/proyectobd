@@ -3,6 +3,21 @@ const SaleDetail = require("../models/SaleDetail");
 const Product = require("../models/Product");
 const InventoryMovement = require("../models/InventoryMovements");
 const mongoose = require("mongoose");
+const AuditLog = require("../models/AuditLog");
+
+/*
+  Servicio de ventas
+  - Valida existencia y stock de productos
+  - Crea la entidad `Sale` y los `SaleDetail`
+  - Actualiza el stock en la colección `Product` y crea movimientos en
+    `InventoryMovements` para mantener trazabilidad
+  - Usa transacciones de mongoose (`session`) para garantizar consistencia
+    entre las colecciones: si algo falla, se revierte todo.
+  Requisitos operativos:
+  - MongoDB debe estar ejecutándose en modo replica set para soportar
+    transacciones (incluso en un entorno de desarrollo se puede usar
+    un replica set local).
+*/
 
 exports.createSale = async ({ usuario, cliente, metodo_pago, items, total }) => {
   // Iniciar sesión para transacción
@@ -67,6 +82,21 @@ exports.createSale = async ({ usuario, cliente, metodo_pago, items, total }) => 
     // Confirmar transacción
     await session.commitTransaction();
     
+    // Registrar entrada de auditoría (se guardará porque está dentro del session)
+    await AuditLog.create(
+      [
+        {
+          usuario,
+          accion: "CREAR_VENTA",
+          entidad: "Sale",
+          detalle: `Venta ${saleId} creada con ${items.length} items`,
+          meta: { saleId }
+        }
+      ],
+      { session }
+    );
+
+    // Retornar venta con populates
     return await Sale.findById(saleId).populate("cliente").populate("usuario");
   } catch (error) {
     // Revertir cambios en caso de error

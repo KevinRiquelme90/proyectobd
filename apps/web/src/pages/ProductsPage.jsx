@@ -55,6 +55,15 @@ export default function ProductsPage() {
     }
   };
 
+  /*
+    Comentarios:
+    - Página de gestión de productos: carga, creación, edición y eliminación.
+    - `handleEdit` abre `EditProductModal` pasándole el producto a modificar.
+    - `handleSave` guarda en el backend y recarga la lista para mantener la
+      vista sincronizada.
+    - Buen lugar para añadir validaciones adicionales sobre stock/ precios.
+  */
+
   useEffect(() => {
     const timeout = setTimeout(() => loadProducts(query), 250);
     return () => clearTimeout(timeout);

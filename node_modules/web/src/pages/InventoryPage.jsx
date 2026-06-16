@@ -35,6 +35,14 @@ export default function InventoryPage() {
     }
   };
 
+  /*
+    Página de inventario:
+    - Muestra el listado completo de productos y su stock actual.
+    - Calcula totales y detecta productos con bajo stock.
+    - `loadInventory` es la fuente de verdad para esta vista; otras vistas
+      emiten `dataUpdated` para solicitar su recarga tras cambios.
+  */
+
   useEffect(() => {
     const timeout = setTimeout(() => loadInventory(query), 250);
     return () => clearTimeout(timeout);

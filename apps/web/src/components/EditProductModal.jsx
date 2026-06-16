@@ -40,6 +40,14 @@ export default function EditProductModal({ product, onClose, onSave }) {
   };
 
   return (
+    /*
+      Modal para editar producto.
+      - Se renderiza como overlay fijo con backdrop.
+      - `onSave` es una callback que debe persistir los cambios (normalmente
+        realiza una petición al backend). Aquí solo se prepara y envía el objeto.
+      - Mantener el modal centrado y con `overflow-y-auto` ayuda a que en pantallas
+        pequeñas no quede fuera de vista.
+    */
     <div className="fixed inset-0 z-50 flex min-h-screen items-center justify-center overflow-y-auto bg-black/60 p-4">
       <div onClick={onClose} className="absolute inset-0" />
       <div className="relative w-full max-w-2xl rounded-2xl bg-slate-950 p-6 shadow-lg">

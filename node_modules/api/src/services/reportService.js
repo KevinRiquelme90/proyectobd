@@ -5,6 +5,18 @@ const Purchase = require("../models/Purchase");
 const InventoryMovement = require("../models/InventoryMovements");
 const Client = require("../models/Client");
 
+/*
+  Servicio de reportes/dashboards
+  - Construye varias agregaciones para:
+    - Ventas por día / mes
+    - Total de ventas/compras
+    - Cálculo de pérdidas (mermas) usando $lookup y $group
+    - Top productos por unidades vendidas
+    - Ganancia neta estimada (ventas - compras - mermas)
+  - Usar agregaciones en la base de datos mejora rendimiento al procesar
+    grandes volúmenes de datos en lugar de hacerlo en la aplicación.
+*/
+
 exports.getDashboardStats = async () => {
   const today = new Date();
   const startDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());

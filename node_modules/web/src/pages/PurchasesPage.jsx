@@ -40,6 +40,17 @@ export default function PurchasesPage() {
     }
   }, []);
 
+  /*
+    Nota: Página de registro de compras.
+    - Carga productos y proveedores desde la API al montarse.
+    - Permite agregar múltiples items a la compra; cada fila muestra el stock
+      actual del producto seleccionado para referencia rápida.
+    - Al registrar la compra (`onSubmit`) se notifica con `dataUpdated` para
+      que otras vistas (ventas/inventario) recarguen su información.
+    - Se espera que el backend realice la actualización de stock y persistencia
+      de forma consistente/atómica.
+  */
+
   useEffect(() => {
     loadData();
     window.addEventListener("dataUpdated", loadData);
@@ -71,6 +82,7 @@ export default function PurchasesPage() {
       });
 
       setMessage("Compra registrada con éxito.");
+      // Notificar al resto de la app que los datos cambiaron
       window.dispatchEvent(new Event("dataUpdated"));
       reset({ proveedor: "", items: [{ producto: "", cantidad: 1, precio_compra: 0 }] });
       await loadData();

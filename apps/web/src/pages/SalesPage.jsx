@@ -45,6 +45,17 @@ export default function SalesPage() {
     }
   }, []);
 
+  /*
+    Nota: Este componente maneja la UI de ventas (pantalla de caja).
+    - Carga productos y clientes desde la API al montarse (`loadData`).
+    - Escucha el evento `dataUpdated` para recargar el inventario cuando
+      una compra/venta/modificación ocurre en otra parte de la app.
+    - Determina el stock restante restando lo que ya está en el carrito
+      para evitar vender más unidades de las disponibles.
+    - Al enviar la venta (`onSubmit`) envía los items al backend y solicita
+      la recarga de datos para reflejar los cambios en stock.
+  */
+
   useEffect(() => {
     loadData();
     window.addEventListener("dataUpdated", loadData);
@@ -70,17 +81,20 @@ export default function SalesPage() {
   );
 
   const onAddItem = () => {
+    // Validaciones de entrada y stock para evitar inconsistencias en la venta
     if (!item || selectedQuantity <= 0) {
       setMessage("Selecciona un producto y una cantidad válida.");
       return;
     }
 
     if (item.stock <= 0 || remainingStock <= 0) {
+      // No hay unidades disponibles
       setMessage("El producto no tiene stock disponible.");
       return;
     }
 
     if (selectedQuantity > remainingStock) {
+      // Evitamos agregar más unidades de las que quedan
       setMessage(`Solo quedan ${remainingStock} unidades disponibles.`);
       return;
     }
@@ -111,6 +125,11 @@ export default function SalesPage() {
     setMessage("");
 
     try {
+      /*
+        Envío de la venta al backend. Se espera que el backend aplique
+        la lógica transaccional (actualizar stock, crear registro de venta,
+        crear detalles) de forma atómica. Aquí solo enviamos datos.
+      */
       const response = await api.post("/sales", {
         cliente: values.cliente || null,
         metodo_pago: values.metodo_pago,
@@ -123,6 +142,7 @@ export default function SalesPage() {
         }))
       });
 
+      // Reseteo de UI y recarga de datos tras venta exitosa
       setMessage("Venta registrada con éxito.");
       setCartItems([]);
       reset({ cliente: "", producto: "", cantidad: 1, metodo_pago: "efectivo" });

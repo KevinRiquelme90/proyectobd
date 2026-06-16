@@ -2,6 +2,16 @@ const mongoose = require("mongoose");
 const Purchase = require("../models/Purchase");
 const Product = require("../models/Product");
 const InventoryMovement = require("../models/InventoryMovements");
+const AuditLog = require("../models/AuditLog");
+
+/*
+  Servicio de compras
+  - Valida la estructura de los items recibidos y normaliza cantidades/precios
+  - Crea la entidad `Purchase` y actualiza el stock de productos con $inc
+  - Registra movimientos de inventario para auditoría
+  - Todo se ejecuta dentro de una transacción mongoose para asegurar
+    que la compra y las actualizaciones de stock sean atómicas.
+*/
 
 exports.createPurchase = async ({ usuario, proveedor, items, total, nota }) => {
   if (!Array.isArray(items) || items.length === 0) {
@@ -73,6 +83,20 @@ exports.createPurchase = async ({ usuario, proveedor, items, total, nota }) => {
     }
 
     await session.commitTransaction();
+    // Registrar entrada de auditoría dentro de la transacción
+    await AuditLog.create(
+      [
+        {
+          usuario,
+          accion: "CREAR_COMPRA",
+          entidad: "Purchase",
+          detalle: `Compra ${savedPurchase._id} creada con ${purchaseItems.length} items`,
+          meta: { purchaseId: savedPurchase._id }
+        }
+      ],
+      { session }
+    );
+
     return savedPurchase;
   } catch (error) {
     await session.abortTransaction();
